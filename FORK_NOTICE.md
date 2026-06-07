@@ -36,6 +36,12 @@ responses and error semantics.
   upstream job removed them. With `blocklist=True` + the strike grace, such items are removed,
   blocklisted, and re-searched.
 
+### `src/jobs/remove_failed_imports.py`
+- Use `queue_scope = "full"` (not `"normal"`) so import-blocked items the \*arr could not match to
+  a series/movie are seen. Title-mismatch blocks ("…title mismatch; automatic import is not
+  possible") become "unknown" queue entries, absent from the normal queue. `_is_valid_item` still
+  gates to completed / warning / importBlocked, so active downloads are not affected.
+
 ### Tests
 `tests/settings/test_download_clients_qbit.py` (cookieless / null-tags / maindata-404 cases) and
 `tests/jobs/test_remove_stalled.py` (the generic-qBit-error case) were updated/added accordingly.

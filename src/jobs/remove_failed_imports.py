@@ -4,7 +4,12 @@ from src.jobs.removal_job import RemovalJob
 
 
 class RemoveFailedImports(RemovalJob):
-    queue_scope = "normal"
+    # tristaoeast fork: "full" (not "normal") so import-blocked items the *arr could not match to a
+    # series/movie are seen. A "title mismatch; automatic import is not possible" block makes the
+    # item an "unknown" queue entry, which is absent from the normal queue. _is_valid_item still
+    # gates to completed + warning + importBlocked/Failed/Pending, so active downloads in the full
+    # queue are ignored.
+    queue_scope = "full"
     blocklist = True
 
     async def _find_affected_items(self):
