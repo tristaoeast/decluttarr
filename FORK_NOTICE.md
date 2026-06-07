@@ -21,9 +21,10 @@ add tolerance for the mock's responses:
   optional, so a cookieless server is a supported configuration.
 - **`create_tag()`** — when `GET /torrents/tags` returns `null` (tags unsupported on the
   mock), skip tag creation instead of crashing on `tag not in None`.
-- **`check_connected()`** — tolerate a missing / `null` `server_state.connection_status` in
-  `GET /sync/maindata`; only an explicit `"disconnected"` is treated as offline, otherwise
-  assume connected so the cleaning loop is not blocked.
+- **`check_connected()`** — tolerate `GET /sync/maindata` being unimplemented (HTTP 404) or
+  returning a `null` body / missing `server_state.connection_status`. On any failure to
+  determine status, assume connected so the cleaning loop is never blocked; only an explicit
+  `"disconnected"` is treated as offline.
 - **`get_protected_and_private()` / `get_qbit_items()`** — treat a `null` tag list / torrent
   list as empty.
 

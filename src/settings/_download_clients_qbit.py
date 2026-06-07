@@ -263,23 +263,25 @@ class QbitClient:
         logger.debug(
             "_download_clients_qBit.py/check_qbit_reachability: Checking if qbit is connected to the internet",
         )
-        maindata = (
-            await make_request(
-                "get",
-                self.api_url + "/sync/maindata",
-                self.settings,
-                cookies=self.cookie,
-            )
-        ).json() or {}
-        # tristaoeast fork: a minimal qBit mock (e.g. Decypharr) may omit server_state /
-        # connection_status. Only an explicit "disconnected" means offline; otherwise assume
-        # connected so the cleaning loop is never blocked by a mock that doesn't report status.
+        # tristaoeast fork: a minimal qBit mock (e.g. Decypharr) may not implement
+        # /sync/maindata (HTTP 404) or may omit server_state/connection_status. If the status
+        # cannot be determined, assume connected so the cleaning loop is never blocked.
+        try:
+            maindata = (
+                await make_request(
+                    "get",
+                    self.api_url + "/sync/maindata",
+                    self.settings,
+                    cookies=self.cookie,
+                    log_error=False,
+                )
+            ).json() or {}
+        except Exception:  # noqa: BLE001
+            return True
         qbit_connection_status = (maindata.get("server_state") or {}).get(
             "connection_status"
         )
-        if qbit_connection_status == "disconnected":
-            return False
-        return True
+        return qbit_connection_status != "disconnected"
 
     async def setup(self):
         """Perform the qBittorrent setup by calling relevant managers."""

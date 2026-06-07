@@ -83,3 +83,16 @@ async def test_check_connected_tolerates_incomplete_maindata():
         mock_request.return_value = resp
 
         assert await client.check_connected() is True
+
+
+@pytest.mark.asyncio
+async def test_check_connected_tolerates_404_maindata():
+    """A minimal qBit mock (e.g. Decypharr) may not implement /sync/maindata (404), which makes
+    make_request raise. check_connected must assume connected (True) rather than propagate the
+    error and crash the job loop. (tristaoeast fork modification.)"""
+    client = _make_qbit_client()
+    with patch(
+        "src.settings._download_clients_qbit.make_request", new_callable=AsyncMock
+    ) as mock_request:
+        mock_request.side_effect = Exception("404 Client Error: Not Found")
+        assert await client.check_connected() is True
