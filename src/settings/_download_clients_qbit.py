@@ -171,6 +171,16 @@ class QbitClient:
         url = f"{self.api_url}/torrents/tags"
         response = await make_request("get", url, self.settings, cookies=self.cookie)
         current_tags = response.json()
+        if current_tags is None:
+            # tristaoeast fork: a minimal qBittorrent-compatible mock (e.g. Decypharr) returns
+            # null for /torrents/tags instead of a list — tags are unsupported there. Skip tag
+            # management gracefully instead of crashing on `tag not in None`.
+            logger.debug(
+                "_download_clients_qBit.py/create_tag: qBit returned no tag list "
+                "(tags unsupported); skipping creation of '%s'",
+                tag,
+            )
+            return
 
         if tag not in current_tags:
             logger.verbose(f"Creating tag: {tag}")
@@ -253,16 +263,20 @@ class QbitClient:
         logger.debug(
             "_download_clients_qBit.py/check_qbit_reachability: Checking if qbit is connected to the internet",
         )
-        qbit_connection_status = (
-            (
-                await make_request(
-                    "get",
-                    self.api_url + "/sync/maindata",
-                    self.settings,
-                    cookies=self.cookie,
-                )
-            ).json()
-        )["server_state"]["connection_status"]
+        maindata = (
+            await make_request(
+                "get",
+                self.api_url + "/sync/maindata",
+                self.settings,
+                cookies=self.cookie,
+            )
+        ).json() or {}
+        # tristaoeast fork: a minimal qBit mock (e.g. Decypharr) may omit server_state /
+        # connection_status. Only an explicit "disconnected" means offline; otherwise assume
+        # connected so the cleaning loop is never blocked by a mock that doesn't report status.
+        qbit_connection_status = (maindata.get("server_state") or {}).get(
+            "connection_status"
+        )
         if qbit_connection_status == "disconnected":
             return False
         return True
@@ -302,7 +316,7 @@ class QbitClient:
 
         for qbit_item in qbit_items:
             # Fetch protected torrents (by tag)
-            if self.settings.general.protected_tag in qbit_item.get("tags", []):
+            if self.settings.general.protected_tag in (qbit_item.get("tags") or []):
                 protected_downloads.append(qbit_item["hash"].upper())
 
             # Fetch private torrents
@@ -388,7 +402,7 @@ class QbitClient:
             cookies=self.cookie,
         )
 
-        all_items = response.json()
+        all_items = response.json() or []
 
         if not hashes:
             return all_items
