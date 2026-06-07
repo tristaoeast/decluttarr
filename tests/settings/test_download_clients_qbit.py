@@ -1,7 +1,7 @@
 import pytest
 
 from requests.cookies import RequestsCookieJar
-from src.settings._download_clients_qbit import QbitClient, QbitError
+from src.settings._download_clients_qbit import QbitClient
 
 
 @pytest.mark.parametrize(
@@ -25,16 +25,20 @@ def test_extract_sid_success(cookie_name, cookie_value, expected):
 @pytest.mark.parametrize(
     "cookies",
     [
-        {},  # Empty jar
-        {"WRONG_NAME": "value"},  # Incorrect name
-        {"sid": "lowercase_fails"},  # Case sensitivity check
+        {},  # Empty jar (open-auth qBittorrent returns no Set-Cookie, e.g. Decypharr)
+        {"WRONG_NAME": "value"},  # No SID-style cookie present
+        {
+            "sid": "lowercase_is_not_a_qbit_sid"
+        },  # Case-sensitive: lowercase "sid" is not a qBit SID
     ],
 )
-def test_extract_sid_failures(cookies):
-    """Test that invalid cookies properly raise QbitError."""
+def test_extract_sid_no_cookie_returns_empty(cookies):
+    """No SID/QBT_SID_* cookie -> return {} (tolerate cookieless / open-auth
+    qBittorrent) rather than raising. Decypharr's qBit mock authenticates open and
+    returns no Set-Cookie; an empty cookie dict lets requests proceed against such
+    servers. (tristaoeast fork modification.)"""
     jar = RequestsCookieJar()
     for name, val in cookies.items():
         jar.set(name, val)
 
-    with pytest.raises(QbitError, match="No qBit cookie found"):
-        QbitClient.extract_sid(jar)
+    assert QbitClient.extract_sid(jar) == {}

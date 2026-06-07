@@ -122,8 +122,16 @@ class QbitClient:
             if cookie.name == "SID" or cookie.name.startswith("QBT_SID_"):
                 return {cookie.name: cookie.value}
 
-        error = "No qBit cookie found"
-        raise QbitError(error)
+        # tristaoeast fork: tolerate cookieless / open-auth qBittorrent (e.g. Decypharr's
+        # qBit mock, which authenticates open and returns 200 "Ok." with no Set-Cookie).
+        # Return {} so callers issue cookieless requests instead of crash-looping on a
+        # QbitError. Upstream config already documents qBit username/password as optional,
+        # so a cookieless server is a supported configuration. See FORK_NOTICE.md.
+        logger.debug(
+            "_download_clients_qBit.py/extract_sid: no SID/QBT_SID_* cookie in login "
+            "response; assuming open-auth qBittorrent and proceeding without a cookie",
+        )
+        return {}
 
     async def fetch_version(self):
         """Fetch the current qBittorrent version."""
