@@ -83,6 +83,26 @@ from tests.jobs.utils import shared_fix_affected_items, shared_test_affected_ite
             ],
             [],  # No items match the condition
         ),
+        (
+            [
+                {
+                    "downloadId": "1",
+                    "status": "warning",
+                    "errorMessage": "qBittorrent is reporting an error",
+                },  # tristaoeast fork: generic qBit error (e.g. Decypharr) -> removable
+                {
+                    "downloadId": "2",
+                    "status": "warning",
+                    "errorMessage": "The download is stalled with no connections",
+                },  # classic stalled -> removable
+                {
+                    "downloadId": "3",
+                    "status": "completed",
+                    "errorMessage": "qBittorrent is reporting an error",
+                },  # wrong status (completed) -> ignored
+            ],
+            ["1", "2"],  # both warning-state broken downloads matched
+        ),
     ],
 )
 async def test_find_affected_items(queue_data, expected_download_ids):

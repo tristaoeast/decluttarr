@@ -9,11 +9,12 @@ licensed under the GNU General Public License v3.0 (see `LICENSE`).
 
 Goal: make Decluttarr work against a **minimal qBittorrent-compatible mock** — specifically
 [Decypharr](https://github.com/sirrobot01/decypharr)'s built-in qBittorrent API — which
-authenticates open (no login cookie) and returns `null` for several endpoints where real
-qBittorrent returns lists/objects. All changes are in
-`src/settings/_download_clients_qbit.py` and preserve real-qBittorrent behavior — they only
-add tolerance for the mock's responses:
+authenticates open (no login cookie), returns `null` for several endpoints where real
+qBittorrent returns lists/objects, and surfaces dead downloads as a generic qBit `error`.
+All changes preserve real-qBittorrent behavior — they only add tolerance for the mock's
+responses and error semantics.
 
+### `src/settings/_download_clients_qbit.py`
 - **`extract_sid()`** — return an empty cookie dict (`{}`) instead of raising
   `QbitError("No qBit cookie found")` when the login response carries no `SID` / `QBT_SID_*`
   cookie. Decypharr authenticates open and returns `200 "Ok."` with no `Set-Cookie`; upstream
@@ -28,10 +29,16 @@ add tolerance for the mock's responses:
 - **`get_protected_and_private()` / `get_qbit_items()`** — treat a `null` tag list / torrent
   list as empty.
 
-Tests in `tests/settings/test_download_clients_qbit.py` were updated/added accordingly:
-`test_extract_sid_no_cookie_returns_empty` (replacing the previous `test_extract_sid_failures`),
-plus `test_create_tag_tolerates_null_tag_list` and
-`test_check_connected_tolerates_incomplete_maindata`.
+### `src/jobs/remove_stalled.py`
+- Also match the arr's generic `("warning", "qBittorrent is reporting an error")` queue state,
+  not only `"The download is stalled with no connections"`. Decypharr surfaces dead / uncached
+  downloads as qBit `error`, which the \*arr reports as a *warning* (never `"failed"`), so no
+  upstream job removed them. With `blocklist=True` + the strike grace, such items are removed,
+  blocklisted, and re-searched.
+
+### Tests
+`tests/settings/test_download_clients_qbit.py` (cookieless / null-tags / maindata-404 cases) and
+`tests/jobs/test_remove_stalled.py` (the generic-qBit-error case) were updated/added accordingly.
 
 This notice is provided to satisfy GPL-3.0 §5(a) — "carry prominent notices stating that you
 modified it, and giving a relevant date." All modifications remain under GPL-3.0.
